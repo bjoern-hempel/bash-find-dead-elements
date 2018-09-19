@@ -1,1 +1,1 @@
-# bash-find-dead-files
+# bash-find-dead-elements
