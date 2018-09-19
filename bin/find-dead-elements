@@ -1,0 +1,130 @@
+#!/bin/bash
+
+# some configs
+verbose=false
+fixPermission=false
+allowedPaths=(/opt/www /var/www)
+
+# declare parameter list array
+PARAMETERS=()
+
+# show version function
+showVersion() {
+    echo "Dead file finder."
+    echo
+    echo "Version: 1.0.0 (2018-09-19)"
+    echo "Author:  Björn Hempel <bjoern@hempel.li>"
+}
+
+# read arguments
+# help:
+# help: Usage: %scriptname% [options...] [path]
+while [[ $# > 0 ]]; do
+    case "$1" in
+        # help:
+        # help:  -f,    --fix-permissions         Fix all dead files (permissions)
+        -f|--fix-permissions)
+            fixPermission=true
+            ;;
+
+        # help:
+        # help:  -v,    --verbose                 Be verbose: Show more informations.
+        -v|--verbose)
+            verbose=true
+            shift
+            ;;
+
+        # help:
+        # help:  -h,    --help                    Shows this help.
+        -h|--help)
+            cat "$BASH_SOURCE" | grep "# help:" | grep -v 'cat parameter' | sed 's/[ ]*# help:[ ]\?//g' | sed "s~%scriptname%~$scriptname~g"
+            exit 0
+            ;;
+
+        # help:
+        # help:         --version                 Shows the version number.
+        # help:
+        --version)
+            [ "$(type -t showVersion)" == "function" ] && showVersion || echo "Create a showVersion function to show some text here."
+            exit 0
+            ;;
+
+        # collect all unknown parameters
+        *)
+            PARAMETERS+=("$1")
+            ;;
+    esac
+    shift
+done
+
+# check root user if needed (for example if we have to fix permissions)
+if $fixPermission; then
+    # get user id
+    userId=$(id -u)
+
+    # the user must be root
+    if [[ $userId -ne 0 ]]; then
+        echo "Please run this script as root. Usage sudo $0 [path]" && exit 1
+    fi
+fi
+
+# check if there is no parameter given
+if [ ${#PARAMETERS[@]} -le 0 ]; then
+    echo "No path given. Usage $0 [path]" && exit 1
+fi
+
+# save given path
+path=$(realpath "${PARAMETERS[0]}")
+
+# check if given path exists
+if [ ! -d "$path" ]; then
+    echo "The given path does not exist." && exit 1
+fi
+
+# check if given path is allowed
+givenPathIsAllowed=false
+for allowedPath in "${allowedPaths[@]}"; do
+    if [[ $path =~ ^$allowedPath ]]; then
+        givenPathIsAllowed=true
+    fi
+done
+
+# cancel if we do have a not allowed path
+if ! $givenPathIsAllowed; then
+    echo "The given path is not allowed to scan." && exit 1
+fi
+
+# change to scriptpath (IMPORTANT!!!)
+cd "$path"
+
+# number of files
+number=$(find . -user root | wc -l)
+
+# no files were found
+if [ $number -le 0 ]; then
+    if $verbose; then
+        echo "No dead file was found." && exit 1
+    else
+        exit 1
+    fi
+fi
+
+# fix or find dead files
+if $fixPermission; then
+
+    # fix the permissions
+    find . -user root | while read fname; do
+        chmod 775 "$fname"
+        chown www-data:users "$fname"
+        echo "$fname fixed"
+    done
+else
+
+    # find files with user root
+    find . -user root | while read fname; do
+        echo "$fname"
+    done
+fi
+
+# return an exit status 0
+exit 0
