@@ -1,1 +1,3 @@
-# bash-find-dead-elements
+# A script to find dead elements
+
+TODO..
