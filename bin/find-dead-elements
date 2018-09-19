@@ -103,9 +103,9 @@ number=$(find . -user root | wc -l)
 # no files were found
 if [ $number -le 0 ]; then
     if $verbose; then
-        echo "No dead file was found." && exit 1
+        echo "No dead file was found." && exit 0
     else
-        exit 1
+        exit 0
     fi
 fi
 
